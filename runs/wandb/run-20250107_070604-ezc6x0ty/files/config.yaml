@@ -1,0 +1,229 @@
+wandb_version: 1
+
+_wandb:
+  desc: null
+  value:
+    python_version: 3.9.18
+    cli_version: 0.16.6
+    framework: huggingface
+    huggingface_version: 4.47.1
+    is_jupyter_run: false
+    is_kaggle_kernel: false
+    start_time: 1736233564.0
+    t:
+      1:
+      - 1
+      - 5
+      - 9
+      - 11
+      - 33
+      - 49
+      - 50
+      - 51
+      - 53
+      - 55
+      - 71
+      - 75
+      - 98
+      - 103
+      - 105
+      2:
+      - 1
+      - 5
+      - 9
+      - 11
+      - 33
+      - 49
+      - 50
+      - 51
+      - 53
+      - 55
+      - 71
+      - 75
+      - 98
+      - 103
+      - 105
+      3:
+      - 7
+      - 13
+      - 23
+      4: 3.9.18
+      5: 0.16.6
+      6: 4.47.1
+      8:
+      - 5
+      13: linux-x86_64
+    m:
+    - 1: trainer/global_step
+      6:
+      - 3
+reward:
+  desc: null
+  value: <utils.FrozenModelSentenceGivenPrompt object at 0x7fd16f6b15b0>
+reward_buffer:
+  desc: null
+  value: <utils.ReplayBuffer object at 0x7fd16f6b1700>
+n_samples:
+  desc: null
+  value: 20
+lr:
+  desc: null
+  value: 0.0001
+subtb_lambda:
+  desc: null
+  value: 1.0
+pf_temp_high:
+  desc: null
+  value: 2.0
+pf_temp_low:
+  desc: null
+  value: 0.5
+pf_temp_prob:
+  desc: null
+  value: 0.666
+use_buffer_prob:
+  desc: null
+  value: 0.25
+min_sentence_len:
+  desc: null
+  value: 1
+max_sentence_len:
+  desc: null
+  value: 30
+reward_temp_start:
+  desc: null
+  value: 1.0
+reward_temp_end:
+  desc: null
+  value: 0.8
+reward_temp_horizon:
+  desc: null
+  value: 750
+illegal_token_mask:
+  desc: null
+  value: null
+train_probes:
+  desc: null
+  value: null
+val_probes:
+  desc: null
+  value: null
+diversity_metric:
+  desc: null
+  value: sequence_embedding
+use_4bit:
+  desc: null
+  value: false
+data_path:
+  desc: null
+  value: data_gfn/gfnft/prompts.txt
+phn2num:
+  desc: null
+  value:
+    '!': 17
+    '"': 97
+    ',': 64
+    .: 77
+    '1': 80
+    ':': 93
+    ;: 81
+    <MUSIC>: 39
+    <NOISE>: 52
+    <OTHER>: 60
+    <SIL>: 53
+    '?': 78
+    _: 15
+    aɪ: 48
+    aɪə: 56
+    aɪɚ: 2
+    aʊ: 36
+    b: 20
+    d: 72
+    dʒ: 57
+    e: 85
+    eɪ: 6
+    f: 69
+    h: 14
+    i: 27
+    iə: 42
+    iː: 68
+    iːː: 51
+    j: 67
+    k: 41
+    kh: 84
+    l: 63
+    m: 9
+    n: 23
+    nʲ: 8
+    o: 86
+    oʊ: 25
+    oː: 74
+    oːɹ: 40
+    p: 34
+    q: 96
+    r: 79
+    s: 66
+    t: 73
+    tɕ: 87
+    tʃ: 75
+    tʰ: 94
+    u: 1
+    uː: 47
+    v: 31
+    w: 19
+    x: 4
+    z: 22
+    ¡: 98
+    «: 88
+    »: 89
+    ¿: 95
+    æ: 32
+    ææ: 50
+    ç: 10
+    ð: 7
+    ŋ: 58
+    ɐ: 70
+    ɐɐ: 71
+    ɑ: 61
+    ɑː: 0
+    ɑːɹ: 44
+    ɒ: 83
+    ɔ: 3
+    ɔɪ: 13
+    ɔː: 29
+    ɔːɹ: 33
+    ə: 54
+    əl: 16
+    əʊ: 90
+    ɚ: 35
+    ɛ: 18
+    ɛɹ: 11
+    ɛː: 82
+    ɜː: 21
+    ɡ: 49
+    ɡʲ: 37
+    ɪ: 65
+    ɪɹ: 76
+    ɪː: 100
+    ɬ: 46
+    ɯ: 91
+    ɹ: 5
+    ɾ: 24
+    ʃ: 26
+    ʊ: 43
+    ʊɹ: 28
+    ʌ: 38
+    ʒ: 55
+    ʔ: 59
+    ̃: 45
+    ̩: 12
+    θ: 30
+    ᵻ: 62
+    —: 99
+    …: 92
+train_size:
+  desc: null
+  value: 0.95
+limit_prompts:
+  desc: null
+  value: 1000

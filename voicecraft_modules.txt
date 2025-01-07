@@ -1,0 +1,359 @@
+VoiceCraft(
+  (text_embedding): TokenEmbedding(
+    (dropout): Dropout(p=0.0, inplace=False)
+    (word_embeddings): Embedding(121, 2048)
+  )
+  (audio_embedding): ModuleList(
+    (0-3): 4 x TokenEmbedding(
+      (dropout): Dropout(p=0.0, inplace=False)
+      (word_embeddings): Embedding(2052, 2048)
+    )
+  )
+  (text_positional_embedding): SinePositionalEmbedding(
+    (dropout): Dropout(p=0.0, inplace=False)
+  )
+  (audio_positional_embedding): SinePositionalEmbedding(
+    (dropout): Dropout(p=0.0, inplace=False)
+  )
+  (decoder): TransformerEncoder(
+    (layers): ModuleList(
+      (0-15): 16 x TransformerEncoderLayer(
+        (self_attn): MultiheadAttention(
+          (out_proj): NonDynamicallyQuantizableLinear(in_features=2048, out_features=2048, bias=True)
+        )
+        (linear1): Linear(in_features=2048, out_features=8192, bias=True)
+        (dropout): Dropout(p=0.0, inplace=False)
+        (linear2): Linear(in_features=8192, out_features=2048, bias=True)
+        (dropout1): Dropout(p=0.0, inplace=False)
+        (dropout2): Dropout(p=0.0, inplace=False)
+        (norm1): LayerNorm((2048,), eps=1e-05, elementwise_affine=True)
+        (norm2): LayerNorm((2048,), eps=1e-05, elementwise_affine=True)
+      )
+    )
+    (norm): LayerNorm((2048,), eps=1e-05, elementwise_affine=True)
+  )
+  (predict_layer): ModuleList(
+    (0-3): 4 x Sequential(
+      (0): Linear(in_features=2048, out_features=1024, bias=True)
+      (1): GELU(approximate='none')
+      (2): Linear(in_features=1024, out_features=2052, bias=True)
+    )
+  )
+  (accuracy_metrics): ModuleList(
+    (0-3): 4 x MulticlassAccuracy()
+  )
+)
+
+
+
+
+————————————————————————————————————完成调整后变为————————————————————————————————————
+
+
+
+
+
+PeftModel(
+  (base_model): LoraModel(
+    (model): VoiceCraft(
+      (text_embedding): TokenEmbedding(
+        (dropout): Dropout(p=0.0, inplace=False)
+        (word_embeddings): Embedding(121, 2048)
+      )
+      (audio_embedding): ModuleList(
+        (0-3): 4 x TokenEmbedding(
+          (dropout): Dropout(p=0.0, inplace=False)
+          (word_embeddings): Embedding(2052, 2048)
+        )
+      )
+      (text_positional_embedding): SinePositionalEmbedding(
+        (dropout): Dropout(p=0.0, inplace=False)
+      )
+      (audio_positional_embedding): SinePositionalEmbedding(
+        (dropout): Dropout(p=0.0, inplace=False)
+      )
+      (decoder): TransformerEncoder(
+        (layers): ModuleList(
+          (0-15): 16 x TransformerEncoderLayer(
+            (self_attn): MultiheadAttention(
+              (out_proj): lora.Linear(
+                (base_layer): NonDynamicallyQuantizableLinear(in_features=2048, out_features=2048, bias=True)
+                (lora_dropout): ModuleDict(
+                  (default): Dropout(p=0.0, inplace=False)
+                )
+                (lora_A): ModuleDict(
+                  (default): Linear(in_features=2048, out_features=64, bias=False)
+                )
+                (lora_B): ModuleDict(
+                  (default): Linear(in_features=64, out_features=2048, bias=False)
+                )
+                (lora_embedding_A): ParameterDict()
+                (lora_embedding_B): ParameterDict()
+                (lora_magnitude_vector): ModuleDict()
+              )
+            )
+            (linear1): lora.Linear(
+              (base_layer): Linear(in_features=2048, out_features=8192, bias=True)
+              (lora_dropout): ModuleDict(
+                (default): Dropout(p=0.0, inplace=False)
+              )
+              (lora_A): ModuleDict(
+                (default): Linear(in_features=2048, out_features=64, bias=False)
+              )
+              (lora_B): ModuleDict(
+                (default): Linear(in_features=64, out_features=8192, bias=False)
+              )
+              (lora_embedding_A): ParameterDict()
+              (lora_embedding_B): ParameterDict()
+              (lora_magnitude_vector): ModuleDict()
+            )
+            (dropout): Dropout(p=0.0, inplace=False)
+            (linear2): lora.Linear(
+              (base_layer): Linear(in_features=8192, out_features=2048, bias=True)
+              (lora_dropout): ModuleDict(
+                (default): Dropout(p=0.0, inplace=False)
+              )
+              (lora_A): ModuleDict(
+                (default): Linear(in_features=8192, out_features=64, bias=False)
+              )
+              (lora_B): ModuleDict(
+                (default): Linear(in_features=64, out_features=2048, bias=False)
+              )
+              (lora_embedding_A): ParameterDict()
+              (lora_embedding_B): ParameterDict()
+              (lora_magnitude_vector): ModuleDict()
+            )
+            (dropout1): Dropout(p=0.0, inplace=False)
+            (dropout2): Dropout(p=0.0, inplace=False)
+            (norm1): LayerNorm((2048,), eps=1e-05, elementwise_affine=True)
+            (norm2): LayerNorm((2048,), eps=1e-05, elementwise_affine=True)
+          )
+        )
+        (norm): LayerNorm((2048,), eps=1e-05, elementwise_affine=True)
+      )
+      (predict_layer): ModuleList(
+        (0-3): 4 x Sequential(
+          (0): Linear(in_features=2048, out_features=1024, bias=True)
+          (1): GELU(approximate='none')
+          (2): Linear(in_features=1024, out_features=2052, bias=True)
+        )
+      )
+      (accuracy_metrics): ModuleList(
+        (0-3): 4 x MulticlassAccuracy()
+      )
+    )
+  )
+)
+
+
+
+
+
+
+
+Module: 
+Module: text_embedding
+Module: text_embedding.dropout
+Module: text_embedding.word_embeddings
+Module: audio_embedding
+Module: audio_embedding.0
+Module: audio_embedding.0.dropout
+Module: audio_embedding.0.word_embeddings
+Module: audio_embedding.1
+Module: audio_embedding.1.dropout
+Module: audio_embedding.1.word_embeddings
+Module: audio_embedding.2
+Module: audio_embedding.2.dropout
+Module: audio_embedding.2.word_embeddings
+Module: audio_embedding.3
+Module: audio_embedding.3.dropout
+Module: audio_embedding.3.word_embeddings
+Module: text_positional_embedding
+Module: text_positional_embedding.dropout
+Module: audio_positional_embedding
+Module: audio_positional_embedding.dropout
+Module: decoder
+Module: decoder.layers
+Module: decoder.layers.0
+Module: decoder.layers.0.self_attn
+Module: decoder.layers.0.self_attn.out_proj
+Module: decoder.layers.0.linear1
+Module: decoder.layers.0.dropout
+Module: decoder.layers.0.linear2
+Module: decoder.layers.0.dropout1
+Module: decoder.layers.0.dropout2
+Module: decoder.layers.0.norm1
+Module: decoder.layers.0.norm2
+Module: decoder.layers.1
+Module: decoder.layers.1.self_attn
+Module: decoder.layers.1.self_attn.out_proj
+Module: decoder.layers.1.linear1
+Module: decoder.layers.1.dropout
+Module: decoder.layers.1.linear2
+Module: decoder.layers.1.dropout1
+Module: decoder.layers.1.dropout2
+Module: decoder.layers.1.norm1
+Module: decoder.layers.1.norm2
+Module: decoder.layers.2
+Module: decoder.layers.2.self_attn
+Module: decoder.layers.2.self_attn.out_proj
+Module: decoder.layers.2.linear1
+Module: decoder.layers.2.dropout
+Module: decoder.layers.2.linear2
+Module: decoder.layers.2.dropout1
+Module: decoder.layers.2.dropout2
+Module: decoder.layers.2.norm1
+Module: decoder.layers.2.norm2
+Module: decoder.layers.3
+Module: decoder.layers.3.self_attn
+Module: decoder.layers.3.self_attn.out_proj
+Module: decoder.layers.3.linear1
+Module: decoder.layers.3.dropout
+Module: decoder.layers.3.linear2
+Module: decoder.layers.3.dropout1
+Module: decoder.layers.3.dropout2
+Module: decoder.layers.3.norm1
+Module: decoder.layers.3.norm2
+Module: decoder.layers.4
+Module: decoder.layers.4.self_attn
+Module: decoder.layers.4.self_attn.out_proj
+Module: decoder.layers.4.linear1
+Module: decoder.layers.4.dropout
+Module: decoder.layers.4.linear2
+Module: decoder.layers.4.dropout1
+Module: decoder.layers.4.dropout2
+Module: decoder.layers.4.norm1
+Module: decoder.layers.4.norm2
+Module: decoder.layers.5
+Module: decoder.layers.5.self_attn
+Module: decoder.layers.5.self_attn.out_proj
+Module: decoder.layers.5.linear1
+Module: decoder.layers.5.dropout
+Module: decoder.layers.5.linear2
+Module: decoder.layers.5.dropout1
+Module: decoder.layers.5.dropout2
+Module: decoder.layers.5.norm1
+Module: decoder.layers.5.norm2
+Module: decoder.layers.6
+Module: decoder.layers.6.self_attn
+Module: decoder.layers.6.self_attn.out_proj
+Module: decoder.layers.6.linear1
+Module: decoder.layers.6.dropout
+Module: decoder.layers.6.linear2
+Module: decoder.layers.6.dropout1
+Module: decoder.layers.6.dropout2
+Module: decoder.layers.6.norm1
+Module: decoder.layers.6.norm2
+Module: decoder.layers.7
+Module: decoder.layers.7.self_attn
+Module: decoder.layers.7.self_attn.out_proj
+Module: decoder.layers.7.linear1
+Module: decoder.layers.7.dropout
+Module: decoder.layers.7.linear2
+Module: decoder.layers.7.dropout1
+Module: decoder.layers.7.dropout2
+Module: decoder.layers.7.norm1
+Module: decoder.layers.7.norm2
+Module: decoder.layers.8
+Module: decoder.layers.8.self_attn
+Module: decoder.layers.8.self_attn.out_proj
+Module: decoder.layers.8.linear1
+Module: decoder.layers.8.dropout
+Module: decoder.layers.8.linear2
+Module: decoder.layers.8.dropout1
+Module: decoder.layers.8.dropout2
+Module: decoder.layers.8.norm1
+Module: decoder.layers.8.norm2
+Module: decoder.layers.9
+Module: decoder.layers.9.self_attn
+Module: decoder.layers.9.self_attn.out_proj
+Module: decoder.layers.9.linear1
+Module: decoder.layers.9.dropout
+Module: decoder.layers.9.linear2
+Module: decoder.layers.9.dropout1
+Module: decoder.layers.9.dropout2
+Module: decoder.layers.9.norm1
+Module: decoder.layers.9.norm2
+Module: decoder.layers.10
+Module: decoder.layers.10.self_attn
+Module: decoder.layers.10.self_attn.out_proj
+Module: decoder.layers.10.linear1
+Module: decoder.layers.10.dropout
+Module: decoder.layers.10.linear2
+Module: decoder.layers.10.dropout1
+Module: decoder.layers.10.dropout2
+Module: decoder.layers.10.norm1
+Module: decoder.layers.10.norm2
+Module: decoder.layers.11
+Module: decoder.layers.11.self_attn
+Module: decoder.layers.11.self_attn.out_proj
+Module: decoder.layers.11.linear1
+Module: decoder.layers.11.dropout
+Module: decoder.layers.11.linear2
+Module: decoder.layers.11.dropout1
+Module: decoder.layers.11.dropout2
+Module: decoder.layers.11.norm1
+Module: decoder.layers.11.norm2
+Module: decoder.layers.12
+Module: decoder.layers.12.self_attn
+Module: decoder.layers.12.self_attn.out_proj
+Module: decoder.layers.12.linear1
+Module: decoder.layers.12.dropout
+Module: decoder.layers.12.linear2
+Module: decoder.layers.12.dropout1
+Module: decoder.layers.12.dropout2
+Module: decoder.layers.12.norm1
+Module: decoder.layers.12.norm2
+Module: decoder.layers.13
+Module: decoder.layers.13.self_attn
+Module: decoder.layers.13.self_attn.out_proj
+Module: decoder.layers.13.linear1
+Module: decoder.layers.13.dropout
+Module: decoder.layers.13.linear2
+Module: decoder.layers.13.dropout1
+Module: decoder.layers.13.dropout2
+Module: decoder.layers.13.norm1
+Module: decoder.layers.13.norm2
+Module: decoder.layers.14
+Module: decoder.layers.14.self_attn
+Module: decoder.layers.14.self_attn.out_proj
+Module: decoder.layers.14.linear1
+Module: decoder.layers.14.dropout
+Module: decoder.layers.14.linear2
+Module: decoder.layers.14.dropout1
+Module: decoder.layers.14.dropout2
+Module: decoder.layers.14.norm1
+Module: decoder.layers.14.norm2
+Module: decoder.layers.15
+Module: decoder.layers.15.self_attn
+Module: decoder.layers.15.self_attn.out_proj
+Module: decoder.layers.15.linear1
+Module: decoder.layers.15.dropout
+Module: decoder.layers.15.linear2
+Module: decoder.layers.15.dropout1
+Module: decoder.layers.15.dropout2
+Module: decoder.layers.15.norm1
+Module: decoder.layers.15.norm2
+Module: decoder.norm
+Module: predict_layer
+Module: predict_layer.0
+Module: predict_layer.0.0
+Module: predict_layer.0.1
+Module: predict_layer.0.2
+Module: predict_layer.1
+Module: predict_layer.1.0
+Module: predict_layer.1.1
+Module: predict_layer.1.2
+Module: predict_layer.2
+Module: predict_layer.2.0
+Module: predict_layer.2.1
+Module: predict_layer.2.2
+Module: predict_layer.3
+Module: predict_layer.3.0
+Module: predict_layer.3.1
+Module: predict_layer.3.2
+Module: accuracy_metrics
+Module: accuracy_metrics.0
+Module: accuracy_metrics.1
+Module: accuracy_metrics.2
+Module: accuracy_metrics.3

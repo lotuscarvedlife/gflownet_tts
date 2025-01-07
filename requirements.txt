@@ -1,0 +1,10 @@
+editdistance
+torchdata
+wandb
+lightning
+sentence-transformers
+datasets
+loralib
+accelerate
+matplotlib
+nltk

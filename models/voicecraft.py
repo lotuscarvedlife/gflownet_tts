@@ -1578,12 +1578,13 @@ class VoiceCraft(
         for y_single in y:
         # 好像是在说我们不会向 prompt 末尾添加结束符号，eog 很可能就是 end of generation
         # rearrange y, we don't add eog to the end, this doesn't actually do anything in the tts scenario
-            rearranged_y = [[y_single]]         # -> [1,1,K,T]
+            rearranged_y = [[y_single]]         # -> [1,1,K,T], [1,1,4, 1025]
             assert rearranged_y[0][0].shape[0] == self.args.n_codebooks, rearranged_y[0][0].shape
 
-            # shift y to create the delayed pattern, 做了 y 的间隔漂移
+            # shift y to create the delayed pattern, 做了 y 的间隔漂移, [4, 1029], 前后填充 empty token
             shifted_y, patterns = self.shift(rearranged_y) # each element [K S], patterns is not used, as we directly use the original input y
             assert shifted_y[0][0].shape[0] == self.args.n_codebooks, shifted_y[0][0].shape
+            
             # assert len(shifted_y[0]) == 1, len(shifted_y[0])
 
             # XXX: 这里也切了最后三个，不知道会有什么影响，更新，会对后续算分有影响，已不再切
@@ -1601,7 +1602,7 @@ class VoiceCraft(
             # cated_y = cated_y.transpose(2,1)      #[1,B,K,S]->[K,S,B]
             # cated_y = shifted_y[0][0].unsqueeze(-1) #[K,S]->[K,S,B]
             # new_y_lens = torch.LongTensor([cated_y.shape[1]]).to(cated_y.device)    # 新长度
-            assert cated_y.shape == torch.Size((self.args.n_codebooks, cated_y.shape[1], 1))  # -> [4, 189, 1]
+            assert cated_y.shape == torch.Size((self.args.n_codebooks, cated_y.shape[1], 1))
             assert not (cated_y == self.args.audio_pad_token).any(), cated_y
 
             # replace tokens in y with the embeddings, add sum codebooks up
@@ -1610,13 +1611,14 @@ class VoiceCraft(
             assert embedded_y.shape[0] == self.args.n_codebooks, embedded_y.shape
             assert embedded_y.shape[-1] == self.args.d_model, embedded_y.shape
             # print_all_and_exit(False, embedded_y = embedded_y)
-            embedded_y = embedded_y.sum(dim=0) # [K,S,B,D]->[S,B,D]  torch.Size([189, 1, 2048]) ，将码本相加
+            embedded_y = embedded_y.sum(dim=0) # [K,S,B,D]->[S,B,D] 
             # print_all_and_exit(False, embedded_y = embedded_y)
-            embedded_y = embedded_y.transpose(1,0) # [S,B,D]->[B,S,D]  torch.Size([1, 189, 2048])
+            embedded_y = embedded_y.transpose(1,0) # [S,B,D]->[B,S,D]  
             # print_all_and_exit(False, embedded_y = embedded_y)
         
             # positional embedding, 经过 audio_positional_embedding 模块, 添加位置信息
-            y_input = self.audio_positional_embedding(embedded_y)  # torch.Size([1, 189, 2048])
+            y_input = self.audio_positional_embedding(embedded_y)  # [1, 1029, 2048]
+            # print_all_and_exit(True, y = y_single, shifted_y = shifted_y[0][0], y_input = y_input)
             # print_all_and_exit(True, y_input = y_input)
             all_y.append(y_input.squeeze(0))   
 
@@ -1646,7 +1648,8 @@ class VoiceCraft(
         assert y_out.shape == y_input.shape, f"y_out.shape: {y_out.shape}, y_input.shape: {y_input.shape}" # [B S D]
         
         # 使用预测层预测每个码本的概率（logits）
-        logits = torch.stack([self.predict_layer[i](y_out) for i in range(self.args.n_codebooks)], dim=1) # [B K S card]
+        logits = torch.stack([self.predict_layer[i](y_out) for i in range(self.args.n_codebooks)], dim=1) # [B K S card], [10, 4, 1029, 2052]
+        # print_all_and_exit(True, y_input = y_input, logits = logits)
         # take out the mask token (using mask_position and new_y_lens) and revert (using function provided by self.pattern)
         assert logits.shape[1] == self.args.n_codebooks and logits.shape[3] == self.n_audio_tokens[0], logits.shape
 

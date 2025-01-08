@@ -3,13 +3,13 @@ name: "gfnft"
 data:
   path: "data_gfn/gfnft/prompts.txt"
   train_size: 0.95
-  limit_prompts: 1000
+  limit_prompts: 100
 
 model:
   name: "830M_TTSEnhanced"
   lora_config:
     _target_: peft.LoraConfig   # 指定使用的类
-    target_modules: ["out_proj", "linear1", "linear2", "predict_layer.*.0", "predict_layer.*.2"]  # 选择需要微调的关键层
+    target_modules: ["out_proj", "linear1", "linear2"]  # 选择需要微调的关键层
     r: 64                       # 低秩矩阵的秩
     lora_alpha: 16              # 缩放因子
     lora_dropout: 0.1           # LoRA层中的dropout概率
@@ -22,7 +22,7 @@ training:
   pf_temp_low: 0.5
   pf_temp_prob: 0.666
   use_buffer_prob: 0.25
-  n_samples: 20
+  n_samples: 10
   lr: 0.0001
   accumulate_grad_batches: 25
   epochs: 300
@@ -54,7 +54,7 @@ callbacks:
     patience: 10
 
 constraints:
-  min_sentence_len: 2
+  min_sentence_len: 1
   max_sentence_len: 10000
   illegal_tokens: [
     "<|endoftext|>",

@@ -1,11 +1,24 @@
 import torch
 import random
 
-generated_audio = torch.tensor([1,2,3,4,5])
-print(generated_audio[-3:])
+# generated_audio = torch.tensor([[False, False, False, False],
+#         [False, False, False, False],
+#         [False, False, False, False],
+#         [False, False, False, False],
+#         [True, False, False, False],
+#         [False, False, False, False],
+#         [False, False, False, False],
+#         [False, False, False, False],
+#         [False, False, False, False],
+#         [False, False, False, False]])
+# a = generated_audio.sum(-1)
+# for idx, ai in enumerate(a):
+#     if ai == 1:
+#         print(idx)
 
 # 创建一个示例的一维张量
-# tensor = torch.tensor([1, 2, 3, 4, 5])
+tensor = torch.tensor([1, 2, 3, 4, 5])
+print(tensor[:-3])
 
 # # 使用 tolist() 方法将张量转换为列表，并使用 join() 函数连接
 # string_representation = ' '.join(map(str, tensor.tolist()))

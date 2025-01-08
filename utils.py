@@ -52,17 +52,17 @@ def score_fast(
     encoded_input,              # 编码后的输入（batch），在后面使用的时候就是已经采样好的多条语句的 token id 序列
     termination_token_id,       # 句号 token id
     min_len,                    # 最小句子长度
-    skip_first,                 # 为 prompt_length
+    skip_first,                 # 为 prompt_length, 注意这里的 prompt_length 相当于 x_encoded 长度加一（最开始有empty token）
     vocab_nice_mask=None,
     vocab_naughty_mask=None,
     vocab_alpha=-99,
     prompt_cache=None,      
 ):
-    y_encoded = encoded_input["y_generated_encoded"]  # -> [B,K,L]
+    y_generated_encoded = encoded_input["y_generated_encoded"]  # -> [B,K,L]
     x_encoded = encoded_input["x_encoded"]
     # 再次获取模型输出下一个 token 的得分
     if prompt_cache is None:
-        logits = model.logits_forward(x_encoded, y_encoded)  # [B K S card]
+        logits = model.logits_forward(x_encoded, y_generated_encoded)  # [B K L+4 card]
     else:
         # NOTE: 因为不会用到所以没有做适配
         raise NotImplementedError("Prompt_cache is not implemented")
@@ -77,9 +77,9 @@ def score_fast(
             for i in range(len(prompt_cache[1]))
         )
         logits = model(encoded_input, past_key_values=batched_prompt_cache).logits
-    # 去除 prompt 部分的得分（保留最后一个）
+    # 去除 prompt 部分的得分（保留最后一个）以及最后的小尾巴
     # get rid of the first few tokens
-    logits = logits[:, :, skip_first - 1 :]
+    logits = logits[:, :, skip_first - 1 :-3]
     # 根据词汇偏好（好与坏）进行概率补偿
     # score the log probability of the input sequence while ignoring termination and padding tokens
     # NOTE: 因为这里用不到所以没有进行适配
@@ -92,11 +92,11 @@ def score_fast(
         # add vocab_alpha to the logits of the masked vocab items
         logits[:, :, vocab_naughty_mask] += vocab_alpha
     # softmax 转化成每组词汇的概率
-    logprob = logits.log_softmax(-1)    # [B,K,S,card]
+    logprob = logits.log_softmax(-1)    
     # XXX: 估计这里会出问题，维度什么的可能对不上
-    # 提取原来输入的采样后的语句中的生成部分的 token id 序列，并进行维度扩展，由于有 delayed pattern，因此需要减1
+    # 提取原来输入的采样后的语句中的生成部分的 token id 序列，并进行维度扩展，由于有 delayed pattern，prompt 前面多了一个 empty token，因此需要减1
     # 这里对延迟 token 做了适配
-    token_ids = y_encoded[:, :, skip_first-1:]
+    token_ids = y_generated_encoded[:, :, skip_first-1:]
     delayed_token_ids = []
     for jj in range(model.args.n_codebooks):
         delayed_token_ids.append(torch.cat([torch.full((logits.shape[0],jj),model.args.empty_token).to(token_ids.device),
@@ -104,6 +104,7 @@ def score_fast(
                                             torch.full((logits.shape[0],model.args.n_codebooks-1-jj),termination_token_id).to(token_ids.device)], 
                                             dim=-1))
     delayed_token_ids = torch.stack(delayed_token_ids, dim=1).unsqueeze(-1)
+    delayed_token_ids = delayed_token_ids[:, :, :-3]  # 去掉小尾巴
     # 收集之前生成的每句话的 token_ids 对应的概率的对数，并按照码本维度进行相加
     logPF = logprob[:, :, :-1].gather(-1, delayed_token_ids).squeeze(-1).sum(1)        # [B,K,S,1] -> [B,S]
     # 逐步累加每句话的采样的所有词汇的概率，即每步可以停止时，当前生成的句子的概率之和
@@ -543,8 +544,8 @@ def generate_and_return_termination_logprob(
                                                                 temperature=temperature,
                                                                 cur_num_gen=i)
                         cur_generated[n_sample].append(token_ids.squeeze(-1))
-                        if n_eog == 1: # 进入结束阶段
-                            active_seqs[n_sample] = False
+                        # if n_eog == 1: # 进入结束阶段
+                        #     active_seqs[n_sample] = False
                             # num_gen[n_sample] = i+3 # 记录该条语句最终生成的长度
                     else:
                         # 根据 active_seqs 标记，将已经终止的语句的此时的 token_id 替换为 empty_token，后面就不再让他生成了，全加的是empty_token
@@ -596,6 +597,10 @@ def generate_and_return_termination_logprob(
         )
         # 更新 active_seqs 标记，如果 token_id 是终止 token id，则标记为 False
         # active_seqs = active_seqs * (token_ids != termination_token_id).squeeze(-1)
+        codebook_eog_num = codebook_eog.sum(dim=-1)
+        for idx, eog_num in enumerate(codebook_eog_num):
+            if eog_num == 1:
+                active_seqs[idx] = False
         # 记录前向概率，只记录 alive 的样本的前向概率
         # 前向概率即本次采样选取的 token 对应的概率，死掉的这一步记为0
         # 这个是本次时间步生成的所有 token id
@@ -636,7 +641,9 @@ def generate_and_return_termination_logprob(
     
     # 现在每个句子都已经生成完了，这里对列表中的 tensor 进行拼接，变成一整个 tensor
     log_pf = torch.stack(log_pf, dim=1)
+    log_pf = log_pf[:, :-3]
     log_pterm = torch.stack(log_pterm, dim=1)
+    log_pterm = log_pterm[:, :-3]
 
     # 恢复 delayed pattern
     flatten_gen = []
@@ -839,12 +846,15 @@ def modified_subtb_loss(
     prompt_len,
     subtb_lambda=1.0,
 ):
+    # 在末尾添加结束符号用以适配
+    generated_audio = torch.cat([generated_audio, torch.full((generated_audio.shape[0],1),termination_token_id).to(generated_audio.device)], dim=-1)
+
     assert (
         log_pf.shape[1]
         == log_r.shape[1]
         == log_pterm.shape[1]
         == generated_audio.shape[1] - prompt_len
-    )
+    ), f"log_pf.shape[1]: {log_pf.shape[1]}, log_r.shape[1]: {log_r.shape[1]}, log_pterm.shape[1]: {log_pterm.shape[1]}, generated_audio.shape[1]: {generated_audio.shape[1]}, prompt_len: {prompt_len}"
     assert (
         log_pf.shape[1] > 1
     )  # With modified-style losses, we need at least one transition before terminating
@@ -887,6 +897,9 @@ def get_termination_vals(
     termination_token_id,
     prompt_len,
 ):
+    # 在末尾添加结束符号用以适配
+    generated_audio = torch.cat([generated_audio, torch.full((generated_audio.shape[0],1),termination_token_id).to(generated_audio.device)], dim=-1)
+
     # batch idx 为每个生成的文本的索引
     batch_idx = torch.arange(generated_audio.size(0))
     # 获取每个文本生成部分的长度（不包含终止标记）

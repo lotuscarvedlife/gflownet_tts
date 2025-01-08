@@ -331,15 +331,16 @@ class NextSentenceGFNTask(LightningModule):
             sentence_len.float().mean(),
             sync_dist=True,
         )
-        if self.diversity_metric.method is not None:
-            generated_sentences = self.tokenizer.batch_decode(
-                generated_audio[:, len(prompt) :]
-            )
-            generated_sentences = [
-                text.replace(".", "") for text in generated_sentences
-            ]
-            diversity = self.diversity_metric(generated_sentences)
-            self.log(f"val/{self.diversity_metric_name}", diversity, sync_dist=True)
+        # TODO: 多样性指标验证适配
+        # if self.diversity_metric.method is not None:
+        #     generated_sentences = self.tokenizer.batch_decode(
+        #         generated_audio[:, len(prompt) :]
+        #     )
+        #     generated_sentences = [
+        #         text.replace(".", "") for text in generated_sentences
+        #     ]
+        #     diversity = self.diversity_metric(generated_sentences)
+        #     self.log(f"val/{self.diversity_metric_name}", diversity, sync_dist=True)
 
     """
     定义每个训练步开始时的操作，包括更新奖励温度和学习率。

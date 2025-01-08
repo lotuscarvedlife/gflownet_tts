@@ -88,6 +88,9 @@ class PromptDataPipe(Dataset):
             audio_path=prompt_audio_path
         )[0][0] # [1, codebook, time]
 
+        # if audio_tokens.shape[2] == 793 and torch.all(audio_tokens[0,0,-3:] == torch.tensor([131,825,433]).to(audio_tokens.device)):
+        #     print(prompt_audio_path)
+
         return {"x_encoded": text_tokens,
                 "y_encoded": audio_tokens}
         # prompt = self.tokenizer(

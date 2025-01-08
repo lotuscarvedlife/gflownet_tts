@@ -75,6 +75,9 @@ def train(config: DictConfig):
     model_args = Namespace(**vars(model.args))
     phn2num = model_args.phn2num
 
+
+
+
     # example_audio = "./demo/output_trump3.wav"
     # example_target_transcript = "Because our leaders are stupid, our politicians are stupid."
     # example_target_transcript = "BECAUSE OUR LEADERS ARE STUPID, OUR POLITICIANS ARE STUPID."
@@ -84,6 +87,7 @@ def train(config: DictConfig):
     #         tokenizer=audio_tokenizer,
     #         audio_path=example_audio
     #     )[0][0] # [1, codebook, time]
+    #     print_all_and_exit(True, original_audio=original_audio)
     #     original_audio_lens = torch.LongTensor([original_audio.shape[2]])
     #     # assert original_audio.ndim==3 and original_audio.shape[0] == 1 and original_audio.shape[2] == model_args.n_codebooks, original_audio.shape
         

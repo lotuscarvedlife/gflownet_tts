@@ -54,8 +54,8 @@ callbacks:
     patience: 10
 
 constraints:
-  min_sentence_len: 1
-  max_sentence_len: 30
+  min_sentence_len: 2
+  max_sentence_len: 10000
   illegal_tokens: [
     "<|endoftext|>",
     "\n", "\n\n", "\t", "\"", "\"\"", "\"\"\"",

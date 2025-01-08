@@ -149,7 +149,7 @@ class NextSentenceGFNTask(LightningModule):
             # 这里需要考虑到有 delayed pattern 的影响
             # XXX: 但是还是不知道到底为什么要这样删
             log_r = log_r[
-                :, : generated_audio.shape[2] - prompt["y_encoded"].shape[1] + generated_audio.shape[1]-1
+                :, : generated_audio.shape[2] - prompt["y_encoded"].shape[2] + generated_audio.shape[1]-1
             ]  # Undo padding from buffer   # 去除生成文本中多余的填充部分（填充是0）
             log_r *= 1 / self.reward.temperature  # redo the effect of reward tempering
         else:
@@ -172,8 +172,8 @@ class NextSentenceGFNTask(LightningModule):
             )
             # 将采样到的句子添加到奖励缓冲区
             self.reward_buffer.add_batch(
-                prompt=prompt,  # 这里的 prompt 是个字典,包含"x_encoded"[1,L]和"y_encoded"[1,T,K]
-                sentences=generated_audio[:, :, prompt["y_encoded"].shape[1] :],
+                prompt=prompt,  # 这里的 prompt 是个字典,包含"x_encoded"[1,L]和"y_encoded"[1,K,T]
+                sentences=generated_audio[:, :, prompt["y_encoded"].shape[2] :],
                 logrewards=log_r
                 * self.reward.temperature,  # undo the effect of reward tempering
                 # audio_tokenizer=self.audio_tokenizer,
@@ -188,7 +188,7 @@ class NextSentenceGFNTask(LightningModule):
             log_pterm=log_pterm,
             generated_audio=generated_audio[:, 0, :],           # 这里直接就取所有生成样本中的第一个码本
             termination_token_id=self.end_of_audio_token_id,
-            prompt_len=prompt["y_encoded"].shape[1],
+            prompt_len=prompt["y_encoded"].shape[2],
             subtb_lambda=self.hparams.subtb_lambda,
         )
 
@@ -201,7 +201,7 @@ class NextSentenceGFNTask(LightningModule):
             log_r=log_r,
             log_r_unpenalized=log_r_unpenalized,
             termination_token_id=self.end_of_audio_token_id,
-            prompt_len=prompt["y_encoded"].shape[1],
+            prompt_len=prompt["y_encoded"].shape[2],
         )
         log_ps = last_log_r * self.reward.temperature
         log_ps_unpenalized = last_log_r_unpenalized * self.reward.temperature
@@ -277,21 +277,21 @@ class NextSentenceGFNTask(LightningModule):
             log_pf=log_pf,
             log_r=log_r,
             log_pterm=log_pterm,
-            generated_audio=generated_audio,
+            generated_audio=generated_audio[:, 0, :],
             termination_token_id=self.end_of_audio_token_id,
-            prompt_len=len(prompt),
+            prompt_len=prompt["y_encoded"].shape[2],
             subtb_lambda=self.hparams.subtb_lambda,
         )
 
         # Log metrics
         _, last_log_r, last_log_r_unpenalized, sentence_len = get_termination_vals(
-            generated_audio=generated_audio,
+            generated_audio=generated_audio[:, 0, :],
             log_pf=log_pf,
             log_pterm=log_pterm,
             log_r=log_r,
             log_r_unpenalized=log_r_unpenalized,
             termination_token_id=self.end_of_audio_token_id,
-            prompt_len=len(prompt),
+            prompt_len=prompt["y_encoded"].shape[2],
         )
         log_ps = last_log_r * self.reward.temperature
         log_ps_unpenalized = last_log_r_unpenalized * self.reward.temperature
@@ -398,7 +398,7 @@ class NextSentenceGFNTask(LightningModule):
                 log_r=log_r,
                 log_r_unpenalized=log_r_unpenalized,
                 termination_token_id=self.end_of_audio_token_id,
-                prompt_len=prompt["y_encoded"].shape[1],
+                prompt_len=prompt["y_encoded"].shape[2],
             )
             log_rs.append(log_r)
             log_pfss.append(log_pfs)

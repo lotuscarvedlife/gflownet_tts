@@ -4,7 +4,7 @@ defaults:     # 这里在指定文件夹中的内容
   - device: gpu
   - hydra: default
 
-seed: 27
+seed: 26
 save_dir: "runs/"
 
 logger:

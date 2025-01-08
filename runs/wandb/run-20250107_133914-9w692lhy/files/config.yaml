@@ -1,0 +1,125 @@
+wandb_version: 1
+
+_wandb:
+  desc: null
+  value:
+    python_version: 3.9.18
+    cli_version: 0.16.6
+    framework: huggingface
+    huggingface_version: 4.47.1
+    is_jupyter_run: false
+    is_kaggle_kernel: false
+    start_time: 1736257154.0
+    t:
+      1:
+      - 1
+      - 5
+      - 9
+      - 11
+      - 33
+      - 49
+      - 50
+      - 51
+      - 53
+      - 55
+      - 71
+      - 75
+      - 98
+      - 103
+      - 105
+      2:
+      - 1
+      - 5
+      - 9
+      - 11
+      - 33
+      - 49
+      - 50
+      - 51
+      - 53
+      - 55
+      - 71
+      - 75
+      - 98
+      - 103
+      - 105
+      3:
+      - 7
+      - 13
+      - 23
+      4: 3.9.18
+      5: 0.16.6
+      6: 4.47.1
+      8:
+      - 5
+      13: linux-x86_64
+    m:
+    - 1: trainer/global_step
+      6:
+      - 3
+reward:
+  desc: null
+  value: <utils.FrozenModelSentenceGivenPrompt object at 0x7f561470b7f0>
+reward_buffer:
+  desc: null
+  value: <utils.ReplayBuffer object at 0x7f561470b610>
+n_samples:
+  desc: null
+  value: 20
+lr:
+  desc: null
+  value: 0.0001
+subtb_lambda:
+  desc: null
+  value: 1.0
+pf_temp_high:
+  desc: null
+  value: 2.0
+pf_temp_low:
+  desc: null
+  value: 0.5
+pf_temp_prob:
+  desc: null
+  value: 0.666
+use_buffer_prob:
+  desc: null
+  value: 0.25
+min_sentence_len:
+  desc: null
+  value: 1
+max_sentence_len:
+  desc: null
+  value: 10000
+reward_temp_start:
+  desc: null
+  value: 1.0
+reward_temp_end:
+  desc: null
+  value: 0.8
+reward_temp_horizon:
+  desc: null
+  value: 750
+illegal_token_mask:
+  desc: null
+  value: null
+train_probes:
+  desc: null
+  value: null
+val_probes:
+  desc: null
+  value: null
+diversity_metric:
+  desc: null
+  value: sequence_embedding
+use_4bit:
+  desc: null
+  value: false
+data_path:
+  desc: null
+  value: data_gfn/gfnft/prompts.txt
+train_size:
+  desc: null
+  value: 0.95
+limit_prompts:
+  desc: null
+  value: 1000

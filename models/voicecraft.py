@@ -1555,11 +1555,11 @@ class VoiceCraft(
     def logits_forward(
             self,
             x_encoded,  # A 2-D tensor of shape (B, L)
-            y_encoded,  # # A 3-D tensor of shape (B, T, K)
+            y_encoded,  # A 3-D tensor of shape (B, K, T)
     ):
         x = x_encoded
         y = y_encoded
-        y = y.transpose(2,1) # [B,T,K] -> [B,K,T]
+        # y = y.transpose(2,1) # [B,T,K] -> [B,K,T]
 
         assert x.shape[0]==y.shape[0], f"shapes are different! x:{x.shape}, y:{y.shape}"
         n_samples = x.shape[0]
@@ -1574,49 +1574,54 @@ class VoiceCraft(
         y_lens = torch.LongTensor([y_len]*y.shape[0]).to(y.device)
 
         # XXX: 这里也直接采用批量操作
+        all_y = []
+        for y_single in y:
         # 好像是在说我们不会向 prompt 末尾添加结束符号，eog 很可能就是 end of generation
         # rearrange y, we don't add eog to the end, this doesn't actually do anything in the tts scenario
-        rearranged_y = [y]         # -> [1,B,K,T]
-        assert rearranged_y[0][0].shape[0] == self.args.n_codebooks, rearranged_y[0][0].shape
+            rearranged_y = [[y_single]]         # -> [1,1,K,T]
+            assert rearranged_y[0][0].shape[0] == self.args.n_codebooks, rearranged_y[0][0].shape
 
-        # shift y to create the delayed pattern, 做了 y 的间隔漂移
-        shifted_y, patterns = self.shift(rearranged_y) # each element [K S], patterns is not used, as we directly use the original input y
-        assert shifted_y[0][0].shape[0] == self.args.n_codebooks, shifted_y[0][0].shape
-        # assert len(shifted_y[0]) == 1, len(shifted_y[0])
+            # shift y to create the delayed pattern, 做了 y 的间隔漂移
+            shifted_y, patterns = self.shift(rearranged_y) # each element [K S], patterns is not used, as we directly use the original input y
+            assert shifted_y[0][0].shape[0] == self.args.n_codebooks, shifted_y[0][0].shape
+            # assert len(shifted_y[0]) == 1, len(shifted_y[0])
 
-        # XXX: 这里也切了最后三个，不知道会有什么影响，更新，会对后续算分有影响，已不再切
-        # XXX: 因为每个生成的句子长度都不一样，短的句子后面添加的是 empty token，后续可能会有问题
-        # below is different from forward or inference
-        # where we cut this shifted part 
-        # shifted_y[0][0] = shifted_y[0][0][:, :-(self.args.n_codebooks-1)]    # -> [4, 189] 切了每个 K 的后三个，这样后面的就不会出现 empty_tokens 了
-        # assert not (shifted_y[0][0][self.args.n_codebooks:] == self.args.empty_token).any() and not (shifted_y[0][0][self.args.n_codebooks:] == self.args.eog).any(), shifted_y[0][0]
-        # print_all_and_exit(True, shifted_y = shifted_y)
+            # XXX: 这里也切了最后三个，不知道会有什么影响，更新，会对后续算分有影响，已不再切
+            # XXX: 因为每个生成的句子长度都不一样，短的句子后面添加的是 empty token，后续可能会有问题
+            # below is different from forward or inference
+            # where we cut this shifted part 
+            # shifted_y[0][0] = shifted_y[0][0][:, :-(self.args.n_codebooks-1)]    # -> [4, 189] 切了每个 K 的后三个，这样后面的就不会出现 empty_tokens 了
+            # assert not (shifted_y[0][0][self.args.n_codebooks:] == self.args.empty_token).any() and not (shifted_y[0][0][self.args.n_codebooks:] == self.args.eog).any(), shifted_y[0][0]
+            # print_all_and_exit(True, shifted_y = shifted_y)
 
-        # next section in inference is insert mask at the intersection of each tensor in a sample, but we don't need to do that 
-        # next section is concate tensors of each sample to one tensor, which we also don't need
-        # XXX: 这里不知道喂给 audio embedding 的对不对
-        cated_y = shifted_y[0].transpose(1,0) 
-        cated_y = cated_y.transpose(2,1)      #[1,B,K,S]->[K,S,B]
-        # cated_y = shifted_y[0][0].unsqueeze(-1) #[K,S]->[K,S,B]
-        new_y_lens = torch.LongTensor([cated_y.shape[2]]*n_samples).to(cated_y.device)    # 新长度
-        assert cated_y.shape == torch.Size((self.args.n_codebooks, cated_y.shape[1], n_samples))  # -> [4, 189, 1]
-        assert not (cated_y == self.args.audio_pad_token).any(), cated_y
+            # next section in inference is insert mask at the intersection of each tensor in a sample, but we don't need to do that 
+            # next section is concate tensors of each sample to one tensor, which we also don't need
+            # XXX: 这里不知道喂给 audio embedding 的对不对
+            cated_y = shifted_y[0][0].unsqueeze(-1) 
+            # cated_y = cated_y.transpose(2,1)      #[1,B,K,S]->[K,S,B]
+            # cated_y = shifted_y[0][0].unsqueeze(-1) #[K,S]->[K,S,B]
+            # new_y_lens = torch.LongTensor([cated_y.shape[1]]).to(cated_y.device)    # 新长度
+            assert cated_y.shape == torch.Size((self.args.n_codebooks, cated_y.shape[1], 1))  # -> [4, 189, 1]
+            assert not (cated_y == self.args.audio_pad_token).any(), cated_y
 
-        # replace tokens in y with the embeddings, add sum codebooks up
-        # 从这里开始开始进行模型的运行，这里经过 audio_embedding 模块的处理，将每个码本分别通过对应 embedding 模块，然后再堆积起来。
-        embedded_y = torch.stack([self.audio_embedding[k](cated_y[k]) for k in range(self.args.n_codebooks)], dim=0) # [K, S, B, D] torch.Size([4, 189, 1, 2048])
-        assert embedded_y.shape[0] == self.args.n_codebooks, embedded_y.shape
-        assert embedded_y.shape[-1] == self.args.d_model, embedded_y.shape
-        # print_all_and_exit(False, embedded_y = embedded_y)
-        embedded_y = embedded_y.sum(dim=0) # [K,S,B,D]->[S,B,D]  torch.Size([189, 1, 2048]) ，将码本相加
-        # print_all_and_exit(False, embedded_y = embedded_y)
-        embedded_y = embedded_y.transpose(1,0) # [S,B,D]->[B,S,D]  torch.Size([1, 189, 2048])
-        # print_all_and_exit(False, embedded_y = embedded_y)
+            # replace tokens in y with the embeddings, add sum codebooks up
+            # 这里经过 audio_embedding 模块的处理，将每个码本分别通过对应 embedding 模块，然后再堆积起来。
+            embedded_y = torch.stack([self.audio_embedding[k](cated_y[k]) for k in range(self.args.n_codebooks)], dim=0) # [K, S, B, D] torch.Size([4, 189, 1, 2048])
+            assert embedded_y.shape[0] == self.args.n_codebooks, embedded_y.shape
+            assert embedded_y.shape[-1] == self.args.d_model, embedded_y.shape
+            # print_all_and_exit(False, embedded_y = embedded_y)
+            embedded_y = embedded_y.sum(dim=0) # [K,S,B,D]->[S,B,D]  torch.Size([189, 1, 2048]) ，将码本相加
+            # print_all_and_exit(False, embedded_y = embedded_y)
+            embedded_y = embedded_y.transpose(1,0) # [S,B,D]->[B,S,D]  torch.Size([1, 189, 2048])
+            # print_all_and_exit(False, embedded_y = embedded_y)
         
-        # positional embedding, 经过 audio_positional_embedding 模块, 添加位置信息
-        y_input = self.audio_positional_embedding(embedded_y)  # torch.Size([1, 189, 2048])
-        # print_all_and_exit(True, y_input = y_input)
+            # positional embedding, 经过 audio_positional_embedding 模块, 添加位置信息
+            y_input = self.audio_positional_embedding(embedded_y)  # torch.Size([1, 189, 2048])
+            # print_all_and_exit(True, y_input = y_input)
+            all_y.append(y_input.squeeze(0))   
 
+        y_input = torch.stack(all_y, dim=0)
+        new_y_lens = torch.LongTensor([y_input.shape[1]]*n_samples).to(y_input.device)
         # make attention mask and padding mask, 创建注意力掩码和填充掩码
         y_attention_mask = torch.triu(torch.ones(y_input.shape[1], y_input.shape[1]), diagonal=1).bool().to(y.device)
 

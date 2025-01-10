@@ -32,6 +32,8 @@ from data.tokenizer import (
 from argparse import Namespace
 from hydra import initialize, compose
 
+# torch.autograd.set_detect_anomaly(True)   # 异常检测
+
 # 让我看看你到底是什么东西
 def print_all_and_exit(stop: bool, *args, **kwargs):
     if args:
@@ -199,7 +201,7 @@ def train(config: DictConfig):
         accelerator=config.device.accelerator,                                          # 运行命令指定gpu.yaml，加速器为 cuda
         max_epochs=config.task.training.epochs,                                         # config 文件中指定为 300
         accumulate_grad_batches=config.task.training.accumulate_grad_batches,           # 运行命令有指定为 32，指定梯度累计的步数
-        # num_sanity_val_steps=0,
+        num_sanity_val_steps=0,
         logger=config.logger                                                            # 在 train.yaml 中指定了 wandb
         if isinstance(config.logger, bool)                                              # 意思是如果 config.logger 是布尔值，则不加载 logger
         else hydra.utils.instantiate(config.logger),                                    # 否则就加载指定的 logger
@@ -214,6 +216,7 @@ def train(config: DictConfig):
         task.to = MethodType(lambda s, _: s, task)
         task.cuda = MethodType(lambda s: s, task)
 
+    
     trainer.fit(model=task, datamodule=data)
 
 

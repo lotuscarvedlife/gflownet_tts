@@ -83,6 +83,7 @@ class NextSentenceGFNTask(LightningModule):
     action_seq：用于指定生成句子的策略，用于指导生成过程，默认为None
     """
     def forward(self, prompt, n_samples=None, pf_temperature=1.0, action_seq=None):
+        
         # # 保证 prompt 只有一个维度，也即 prompt 只有一个
         # assert prompt.ndim == 1
         # 使用字典来运送 x 和 y，包含"x_encoded"[1,L]和"y_encoded"[1,T,K]
@@ -99,6 +100,7 @@ class NextSentenceGFNTask(LightningModule):
             audio_tokenizer=self.audio_tokenizer,           # 传入 tokenizer(audio_tokenizer)
             text_tokenizer=self.text_tokenizer,
         )
+        
         # 调用 generate_and_return_termination_logprob 函数生成文本并计算相关概率和奖励。
         (
             generated_audio,         # 生成的音频
@@ -127,6 +129,7 @@ class NextSentenceGFNTask(LightningModule):
     batch_idx：当前批次的索引
     """
     def training_step(self, prompt, batch_idx):
+        # torch.autograd.set_detect_anomaly(True)
         # Should always be (1, prompt_len)
         # XXX: 这里不知道拿到的 prompt 到底是什么，理论上应该拿到的是个 dict 才对
         # prompt = prompt[0]
@@ -149,12 +152,14 @@ class NextSentenceGFNTask(LightningModule):
             # 这里需要考虑到有 delayed pattern 的影响
             # XXX: 但是还是不知道到底为什么要这样删
             log_r = log_r[
-                :, : generated_audio.shape[2] - prompt["y_encoded"].shape[2] + generated_audio.shape[1]-1
+                :, : generated_audio.shape[2] - prompt["y_encoded"].shape[2] + 1
             ]  # Undo padding from buffer   # 去除生成文本中多余的填充部分（填充是0）
             log_r *= 1 / self.reward.temperature  # redo the effect of reward tempering
+
         else:
             # 不用缓冲区就直接用 forward 采样
             # Using the forward policy
+            
             # 概率进行温度调整
             if random.random() < self.hparams.pf_temp_prob:  # With tempering
                 # 在设定的下限和上限之间随机取一个值（0.5~2.0）
@@ -166,10 +171,13 @@ class NextSentenceGFNTask(LightningModule):
             # 不进行温度调整
             else:  # Without tempering
                 pf_temp = 1.0
+        
+
             # 从 forward 中进行完整采样，并进行温度调整, generated_audio [B, K, L]
             generated_audio, log_pf, log_pterm, log_r, log_r_unpenalized = self.forward(
                 prompt, pf_temperature=pf_temp
             )
+            
             # 将采样到的句子添加到奖励缓冲区
             self.reward_buffer.add_batch(
                 prompt=prompt,  # 这里的 prompt 是个字典,包含"x_encoded"[1,L]和"y_encoded"[1,K,T]

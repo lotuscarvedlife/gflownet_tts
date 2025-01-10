@@ -300,8 +300,7 @@ def generate_and_return_termination_logprob(
     skip_rewards=False,
     n_samples = None,
 ):
-    # 每一步都生成并返回句子的终止概率
-    # generate and return the probability of terminating at every step
+    # torch.autograd.set_detect_anomaly(True)
     # 表示哪些序列仍在生成状态，初始时所有序列为活跃状态。
     active_seqs = torch.ones(n_samples).bool().to(encoded_prompt["y_encoded"].device)
     # 存储目前生成的内容
@@ -310,15 +309,16 @@ def generate_and_return_termination_logprob(
     log_pf = []
     log_pterm = []
     # 存储句子的生成状态
-    token_ids = None  # For caching hidden states during generation
+    # token_ids = None  
     past = None  # For caching hidden states during generation
     prompt_length = 0 # 存储提示长度
 
     # 获取 x 和 y
-    x = encoded_prompt["x_encoded"] # A 2-D tensor of shape (1, L)
+    x = encoded_prompt["x_encoded"].clone() # A 2-D tensor of shape (1, L)
     x_lens = torch.LongTensor([x.shape[-1]]) # A 1-D tensor of shape (1,). It contains the number of tokens in `x` before padding
-    y = encoded_prompt["y_encoded"] # A 3-D tensor of shape (1, K, T)
+    y = encoded_prompt["y_encoded"].clone() # A 3-D tensor of shape (1, K, T)
     # y = y.transpose(2,1) # [1,T,K] -> [1,K,T]
+    assert x.shape[0] == 1 and y.shape[0]==1, f"x.shape: {x.shape}, y.shape: {y.shape}"
 
     # 制作注意力掩码和制作带有位置信息的目标文本嵌入
     x_attention_mask = torch.triu(torch.ones(x.shape[1], x.shape[1]), diagonal=1).bool().to(x.device)
@@ -360,7 +360,7 @@ def generate_and_return_termination_logprob(
     y_padding_mask = torch.full((1,new_y_lens[0]), False).to(y.device)
 
     # 标记每个生成序列的码本是否产生了结束符号
-    codebook_eog = torch.tensor([[False] * model.args.n_codebooks for _ in range(n_samples)])
+    codebook_eog = torch.tensor([[False] * model.args.n_codebooks for _ in range(n_samples)]).to(x.device)
 
     # 存储当前生成的状态
     # state = encoded_prompt.clone()
@@ -371,6 +371,7 @@ def generate_and_return_termination_logprob(
     past = torch.ones([model.args.num_decoder_layers, 2, x.shape[0]], device=x.device, dtype=torch.float32) # -> [16,2,1]
 
     # 已修改为单次采样（对 n_sample 的概率进行采样）
+    @torch.no_grad()
     def sample_helper(n_sample, n_eog, logits, codebook_eog, top_k, top_p, temperature, cur_num_gen):
         # 没有码本进入结束阶段
         if n_eog == 0:
@@ -416,7 +417,7 @@ def generate_and_return_termination_logprob(
                 # if we haven't reach the minimum length, set the probability of terminating to 0
                 logits_adjust[:, termination_token_id] = -torch.inf
             # 如果此时已经达到最大长度限制，则将第一个码本的终止 token 的概率设置为1，其他设置为无穷小
-            elif cur_num_gen >= max_len:
+            elif cur_num_gen >= max_len-4:
                 # if we've reached the maximum length, set the probability of terminating to 1
                 mask = [True] * logits_adjust.shape[1]
                 mask[termination_token_id] = False
@@ -480,6 +481,8 @@ def generate_and_return_termination_logprob(
 
     # num_gen = [[] for _ in range(n_samples)] # 记录最终生成了多长的语句
     num_gen = 0
+    # import time
+    # time.sleep(10)
     # 生成循环，生成次数为最大句子长度
     for i in range(max_len + 1):
         # 第一次生成
@@ -488,18 +491,20 @@ def generate_and_return_termination_logprob(
             assert x_padding_mask.ndim == 2 and x_padding_mask.shape[0] == 1, x_padding_mask.shape
             assert y_input.ndim == 3 and y_input.shape[0] == 1 and y_input.shape[1] == new_y_lens[0], y_input.shape
             assert embedded_y.ndim == 3 and embedded_y.shape[0] == 1 and embedded_y.shape[1] == new_y_lens[0], embedded_y.shape
-            x_input = x_input.repeat(n_samples, 1, 1)
-            x_lens = x_lens.repeat(n_samples)
-            x_padding_mask = x_padding_mask.repeat(n_samples, 1)
-            y_input = y_input.repeat(n_samples, 1, 1)
-            new_y_lens = new_y_lens.repeat(n_samples)
+            x_input = x_input.expand(n_samples, -1, -1)
+            x_lens = x_lens.expand(n_samples)
+            x_padding_mask = x_padding_mask.expand(n_samples, -1)
+            y_input = y_input.expand(n_samples, -1, -1)
+            new_y_lens = new_y_lens.expand(n_samples)
             prompt_length = new_y_lens[0]  # 记录一下 prompt 长度，用于后面的 score 函数，注意这里是 shift 后的长度
-            y_padding_mask = y_padding_mask.repeat(n_samples, 1)
-            embedded_y = embedded_y.repeat(n_samples, 1, 1) # will be used to concat with newly generated token embedding
-            past = past.repeat(1, 1, n_samples) if past != None else None
+            y_padding_mask = y_padding_mask.expand(n_samples, -1)
+            embedded_y = embedded_y.expand(n_samples, -1, -1) # will be used to concat with newly generated token embedding
+            past = past.expand(-1, -1, n_samples) if past != None else None
         else:
             assert x_input.shape[0] == n_samples and x_padding_mask.shape[0] == n_samples and y_input.shape[0] == n_samples and new_y_lens.shape[0] == n_samples, f"x_input.shape: {x_input.shape}, x_padding_mask.shape: {x_padding_mask.shape}, y_input.shape: {y_input.shape}, new_y_lens.shape: {new_y_lens.shape}"
 
+        # import time
+        # time.sleep(5)
         y_out, present = model.dec_forward(
                             x_input,                # 编码后的文本输入（带 batch_size）
                             x_lens,                 # 文本长度（带 batch_size）
@@ -513,10 +518,8 @@ def generate_and_return_termination_logprob(
                         )
         if past != None:
             past = torch.cat([past, present.to(past.dtype)], dim=-2) if past.ndim > 3 else present.to(past.dtype)
-        # 输入prompt的 token id 序列和 past key values，获取当前步的输出，这是最重要的
-        # output = model(input_ids=token_ids, past_key_values=past_key_values)
-        # 更新 past key values
-        # past_key_values = output.past_key_values
+
+        # with torch.no_grad():
         # 获取最后一层的 logits，即每个 token 的预测得分，相当于每次都往前推进一个单词（token）
         y_out = y_out[:, -1:] # only take the last token
         logits = torch.stack([model.predict_layer[i](y_out) for i in range(model.args.n_codebooks)], dim=1) # [B K S card], S==1, so [B K 1 card]，因为只取了第一层
@@ -527,6 +530,7 @@ def generate_and_return_termination_logprob(
         if model.args.eos > 0:  
             for jj in range(model.args.n_codebooks):
                 logits[:,jj,model.args.eog] = -torch.inf
+        
         # 没有动作序列，则进行自动生成
         if action_seq is None:
             with torch.no_grad():
@@ -570,8 +574,18 @@ def generate_and_return_termination_logprob(
                 token_ids = (
                     torch.ones_like(action_seq[:, :, 0]) * termination_token_id
                 ).unsqueeze(-1).to(x.device)     # [B,K,1]
+                for n_sample in range(n_samples):
+                    cur_generated[n_sample].append(token_ids[n_sample].squeeze(-1))
+                codebook_eog = torch.where((token_ids.squeeze(-1) == termination_token_id), 
+                                           torch.tensor(True, device=x.device), 
+                                           codebook_eog)
             else:
-                token_ids = action_seq_delayed[:, :, i].unsqueeze(-1).to(x.device)       # [B,K,1]
+                token_ids = action_seq_delayed[:, :, i].unsqueeze(-1).to(x.device)
+                for n_sample in range(n_samples):
+                    cur_generated[n_sample].append(token_ids[n_sample].squeeze(-1))       # [B,K,1]
+                codebook_eog = torch.where((token_ids.squeeze(-1) == termination_token_id), 
+                                           torch.tensor(True, device=x.device), 
+                                           codebook_eog)
         # 根据 active_seqs 标记，将已经终止的语句的此时的 token_id 替换为终止 token_id，后面就不再让他生成了，全加的是终止token_id
         # token_ids = torch.where(
         #     active_seqs.unsqueeze(-1),
@@ -597,10 +611,12 @@ def generate_and_return_termination_logprob(
         )
         # 更新 active_seqs 标记，如果 token_id 是终止 token id，则标记为 False
         # active_seqs = active_seqs * (token_ids != termination_token_id).squeeze(-1)
-        codebook_eog_num = codebook_eog.sum(dim=-1)
-        for idx, eog_num in enumerate(codebook_eog_num):
-            if eog_num == 1:
-                active_seqs[idx] = False
+        active_seqs = torch.where(codebook_eog.sum(dim=-1) == 1, 
+                                  torch.tensor(False, dtype=active_seqs.dtype).to(active_seqs.device), 
+                                  active_seqs)
+        # for idx, eog_num in enumerate(codebook_eog_num):
+        #     if eog_num == 1:
+        #         active_seqs[idx] = False
         # 记录前向概率，只记录 alive 的样本的前向概率
         # 前向概率即本次采样选取的 token 对应的概率，死掉的这一步记为0
         # 这个是本次时间步生成的所有 token id
@@ -613,6 +629,9 @@ def generate_and_return_termination_logprob(
             )
         )
 
+        # import time
+        # time.sleep(5)
+        # with torch.no_grad():
         # 制作 samples 的嵌入
         samples_emb = torch.stack([model.audio_embedding[k](all_token_ids[:, k]) for k in range(model.args.n_codebooks)], dim=1) # [B, K,1,D]
         assert samples_emb.shape == torch.Size([n_samples, model.args.n_codebooks, 1, model.args.d_model])
@@ -624,21 +643,22 @@ def generate_and_return_termination_logprob(
         y_input = model.audio_positional_embedding(embedded_y) # [B T D]
         # make attention mask and padding mask
         y_attention_mask = torch.triu(torch.ones(y_input.shape[1], y_input.shape[1]), diagonal=1).bool().to(y.device)
-        new_y_lens = torch.LongTensor([y_input.shape[1]]).to(y.device).repeat(n_samples)
+        new_y_lens = torch.LongTensor([y_input.shape[1]]).to(y.device).expand(n_samples)
         y_padding_mask = torch.full((n_samples, new_y_lens[0]), False).to(y.device)
 
         # 拼接 token_id 到 state 中，最新更新，由于最后才恢复delayedtoken，因此最后再生成state
         # state = torch.cat([state, samples_emb], dim=1)
 
         num_gen = i+1
-
+        # print(y_input.shape)
         # check if all sequences have terminated
         # 如果所有句子都结束了那就结束
         if torch.all(codebook_eog):
-            codebook_eog = torch.tensor([[False] * model.args.n_codebooks for _ in range(n_samples)])
+            # codebook_eog = torch.tensor([[False] * model.args.n_codebooks for _ in range(n_samples)])
             break
 
-    
+    # import time
+    # time.sleep(10)
     # 现在每个句子都已经生成完了，这里对列表中的 tensor 进行拼接，变成一整个 tensor
     log_pf = torch.stack(log_pf, dim=1)
     log_pf = log_pf[:, :-3]
@@ -690,7 +710,7 @@ def generate_and_return_termination_logprob(
         # which is guaranteed to be the termination token)
         log_r, log_r_unpenalized = reward_fn(input_batch=input_batch, prompt_length=prompt_length)
     # add a termination token to the end of the sequence
-    cur_generated = [[] for _ in range(n_samples)]
+    # cur_generated = [[] for _ in range(n_samples)]
     return state, log_pf, log_pterm, log_r, log_r_unpenalized
 
 
@@ -1083,8 +1103,9 @@ class ReplayBuffer:
         def batch_decode(sentences):
             token_sentences = []
             for i in range(sentences.size(0)):
-                str = " ".join(map(sentences[i, 0, :].tolist()))
-                str_no_term_token = str.replace(str(self.termination_token_id), "").strip()
+                # print_all_and_exit(True, sentences = sentences)
+                name_str = " ".join(map(str, sentences[i, 0, :].tolist()))
+                str_no_term_token = name_str.replace(str(self.termination_token_id), "").strip()
                 token_sentences.append(str_no_term_token)
             return token_sentences
         

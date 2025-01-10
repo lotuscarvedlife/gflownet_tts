@@ -24,7 +24,7 @@ training:
   use_buffer_prob: 0.25
   n_samples: 10
   lr: 0.0001
-  accumulate_grad_batches: 25
+  accumulate_grad_batches: 1
   epochs: 300
   use_4bit: False
 
@@ -54,8 +54,8 @@ callbacks:
     patience: 10
 
 constraints:
-  min_sentence_len: 1
-  max_sentence_len: 10000
+  min_sentence_len: 5
+  max_sentence_len: 50
   illegal_tokens: [
     "<|endoftext|>",
     "\n", "\n\n", "\t", "\"", "\"\"", "\"\"\"",

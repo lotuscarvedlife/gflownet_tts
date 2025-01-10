@@ -1603,7 +1603,7 @@ class VoiceCraft(
             # cated_y = shifted_y[0][0].unsqueeze(-1) #[K,S]->[K,S,B]
             # new_y_lens = torch.LongTensor([cated_y.shape[1]]).to(cated_y.device)    # 新长度
             assert cated_y.shape == torch.Size((self.args.n_codebooks, cated_y.shape[1], 1))
-            assert not (cated_y == self.args.audio_pad_token).any(), cated_y
+            # assert not (cated_y == self.args.audio_pad_token).any(), cated_y
 
             # replace tokens in y with the embeddings, add sum codebooks up
             # 这里经过 audio_embedding 模块的处理，将每个码本分别通过对应 embedding 模块，然后再堆积起来。
